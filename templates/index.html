@@ -3,65 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kalkulator Probabilitas Pengiriman Same-Day Delivery</title>
+    <title>Kalkulator Prediksi Skor Sepak Bola</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>Kalkulator Probabilitas Pengiriman Same-Day Delivery</h1>
-        
-        <div class="input-section">
-            <div class="form-group">
-                <label for="n">Jumlah Total Pengiriman (n):</label>
-                <input type="number" id="n" min="1" value="10">
+        <h1>Prediksi Skor Sepak Bola</h1>
+        <div class="input-container">
+            <div class="input-group">
+                <label>Harapan Sasaran Rumah *</label>
+                <input type="number" id="homeGoals" step="0.01" value="1.655">
             </div>
-            
-            <div class="form-group">
-                <label for="p">Probabilitas Sukses per Pengiriman (p):</label>
-                <input type="number" id="p" min="0" max="1" step="0.01" value="0.5">
+            <div class="input-group">
+                <label>Harapan Gol Tandang *</label>
+                <input type="number" id="awayGoals" step="0.01" value="2.123">
             </div>
-            
-            <div class="form-group">
-                <label for="k">Jumlah Sukses yang Diinginkan (k):</label>
-                <input type="number" id="k" min="0" value="5">
-            </div>
-            
-            <button onclick="calculateProbability()">Hitung Probabilitas</button>
-        </div>
-
-        <div class="results-section">
-            <div class="result-box">
-                <h3>Probabilitas Tepat k Sukses:</h3>
-                <p id="exact-result">-</p>
-            </div>
-            
-            <div class="result-box">
-                <h3>Probabilitas ≤ k Sukses:</h3>
-                <p id="cumulative-result">-</p>
-            </div>
-            
-            <div class="result-box">
-                <h3>Probabilitas > k Sukses:</h3>
-                <p id="more-result">-</p>
-            </div>
-            
-            <div class="result-box">
-                <h3>Probabilitas ≥ k Sukses:</h3>
-                <p id="at-least-result">-</p>
+            <button id="calculateBtn">Menghitung</button>
+            <div class="checkbox-group">
+                <input type="checkbox" id="showPercent">
+                <label for="showPercent">Tampilkan Persen</label>
             </div>
         </div>
 
-        <div class="solution-section">
-            <h2>Solusi Langkah demi Langkah:</h2>
-            <div id="step-by-step-solution"></div>
-        </div>
+        <div class="results-container">
+            <div class="result-box">
+                <h2>Peluang Hasil Akhir Waktu Penuh</h2>
+                <table id="finalResults">
+                    <thead>
+                        <tr>
+                            <th>Kemungkinan</th>
+                            <th>Odds</th>
+                            <th>Persentase</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="home-row">
+                            <td>Menang di kandang sendiri</td>
+                            <td>0</td>
+                            <td>0%</td>
+                        </tr>
+                        <tr class="draw-row">
+                            <td>Kemenangan tandang</td>
+                            <td>0</td>
+                            <td>0%</td>
+                        </tr>
+                        <tr class="away-row">
+                            <td>Menggambar</td>
+                            <td>0</td>
+                            <td>0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
-        <div class="graph-section">
-            <canvas id="probabilityChart"></canvas>
+            <div class="result-box">
+                <h2>Gol Atas/Bawah</h2>
+                <table id="overUnderTable">
+                    <!-- Populated by JavaScript -->
+                </table>
+            </div>
+
+            <div class="result-box">
+                <h2>Peluang untuk Menang Bersih</h2>
+                <table id="cleanWinTable">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Ya</th>
+                            <th>TIDAK</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Rumah</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                        <tr>
+                            <td>Jauh</td>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="result-box">
+                <h2>Peluang Kedua Tim Mencetak Gol</h2>
+                <table id="bttsTable">
+                    <thead>
+                        <tr>
+                            <th>Ya</th>
+                            <th>TIDAK</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>0</td>
+                            <td>0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="result-box full-width">
+                <h2>Skor yang Benar</h2>
+                <table id="correctScoreTable">
+                    <!-- Populated by JavaScript -->
+                </table>
+            </div>
         </div>
     </div>
-    
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

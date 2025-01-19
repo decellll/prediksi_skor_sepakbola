@@ -1,8 +1,45 @@
 from flask import Flask, render_template, request, jsonify
+import math
 import numpy as np
-from scipy.stats import binom
 
 app = Flask(__name__)
+
+def hitung_poisson(k, lambda_val):
+    """Menghitung probabilitas Poisson untuk nilai k tertentu"""
+    return (math.exp(-lambda_val) * (lambda_val ** k)) / math.factorial(k)
+
+def generate_skor_table(expected_home, expected_away, max_goals=4):
+    """Menghasilkan tabel probabilitas skor"""
+    probability_matrix = []
+    for i in range(max_goals + 1):
+        row = []
+        for j in range(max_goals + 1):
+            prob_home = hitung_poisson(i, expected_home)
+            prob_away = hitung_poisson(j, expected_away)
+            row.append(prob_home * prob_away * 100)
+        probability_matrix.append(row)
+    return probability_matrix
+
+def hitung_probabilitas_hasil(matrix):
+    """Menghitung probabilitas untuk berbagai hasil pertandingan"""
+    home_win = 0
+    draw = 0
+    away_win = 0
+    
+    for i in range(len(matrix)):
+        for j in range(len(matrix[0])):
+            if i > j:  # Home win
+                home_win += matrix[i][j]
+            elif i == j:  # Draw
+                draw += matrix[i][j]
+            else:  # Away win
+                away_win += matrix[i][j]
+    
+    return {
+        'home_win': home_win,
+        'draw': draw,
+        'away_win': away_win
+    }
 
 @app.route('/')
 def home():
@@ -10,39 +47,26 @@ def home():
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
-    try:
-        data = request.get_json()
-        n = int(data['n'])  # Jumlah total pengiriman
-        p = float(data['p'])  # Probabilitas sukses per pengiriman
-        k = int(data['k'])  # Jumlah sukses yang diinginkan
-        
-        # Menghitung probabilitas tepat k sukses
-        prob_exact = binom.pmf(k, n, p)
-        
-        # Menghitung probabilitas kurang dari atau sama dengan k sukses
-        prob_cumulative = binom.cdf(k, n, p)
-        
-        # Menghitung probabilitas lebih dari k sukses
-        prob_more = 1 - binom.cdf(k, n, p)
-        
-        # Menghitung probabilitas setidaknya k sukses
-        prob_at_least = 1 - binom.cdf(k-1, n, p)
-        
-        # Generate data untuk grafik
-        x = np.arange(0, n+1)
-        probabilities = binom.pmf(x, n, p)
-        graph_data = [{"x": int(i), "y": float(prob)} for i, prob in zip(x, probabilities)]
-        
-        return jsonify({
-            "exact": round(prob_exact * 100, 2),
-            "cumulative": round(prob_cumulative * 100, 2),
-            "more": round(prob_more * 100, 2),
-            "at_least": round(prob_at_least * 100, 2),
-            "graph_data": graph_data
-        })
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+    data = request.get_json()
+    expected_home = float(data['home'])
+    expected_away = float(data['away'])
+    
+    # Generate probability matrix
+    prob_matrix = generate_skor_table(expected_home, expected_away)
+    
+    # Calculate match outcomes
+    hasil = hitung_probabilitas_hasil(prob_matrix)
+    
+    # Calculate BTTS (Both Teams To Score) probability
+    btts_yes = sum(prob_matrix[i][j] for i in range(1, len(prob_matrix)) 
+                   for j in range(1, len(prob_matrix[0])))
+    btts_no = 100 - btts_yes
+    
+    return jsonify({
+        'matrix': prob_matrix,
+        'hasil': hasil,
+        'btts': {'yes': btts_yes, 'no': btts_no}
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)

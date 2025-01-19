@@ -1,165 +1,177 @@
-let probabilityChart = null;
-
-function factorial(n) {
-    if (n === 0 || n === 1) return 1;
-    return n * factorial(n - 1);
-}
-
-function combination(n, r) {
-    return factorial(n) / (factorial(r) * factorial(n - r));
-}
-
-function calculateProbability() {
-    const n = parseInt(document.getElementById('n').value);
-    const p = parseFloat(document.getElementById('p').value);
-    const k = parseInt(document.getElementById('k').value);
-
-    if (p < 0 || p > 1) {
-        alert('Probabilitas sukses (p) harus antara 0 dan 1');
-        return;
-    }
-
-    fetch('/calculate', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ n, p, k })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert('Error: ' + data.error);
-            return;
-        }
-        
-        // Update hasil
-        document.getElementById('exact-result').textContent = data.exact + '%';
-        document.getElementById('cumulative-result').textContent = data.cumulative + '%';
-        document.getElementById('more-result').textContent = data.more + '%';
-        document.getElementById('at-least-result').textContent = data.at_least + '%';
-        
-        // Update grafik
-        updateChart(data.graph_data, k);
-
-        // Update solusi langkah demi langkah
-        updateStepByStepSolution(n, k, p);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat menghitung probabilitas');
-    });
-}
-
-function updateStepByStepSolution(n, k, p) {
-    const solutionDiv = document.getElementById('step-by-step-solution');
-    const C = combination(n, k);
-    const P_k = Math.pow(p, k);
-    const P_nk = Math.pow(1-p, n-k);
-    const result = C * P_k * P_nk;
-
-    let solution = `
-        <div class="step">
-            <h3>Langkah 1: Identifikasi Komponen</h3>
-            <p>n = ${n} (jumlah percobaan/total pengiriman)</p>
-            <p>k = ${k} (jumlah sukses yang diinginkan)</p>
-            <p>p = ${p} (probabilitas sukses per percobaan)</p>
-        </div>
-
-        <div class="step">
-            <h3>Langkah 2: Rumus Distribusi Binomial</h3>
-            <p>P(X = k) = C(n,k) × p^k × (1-p)^(n-k)</p>
-        </div>
-
-        <div class="step">
-            <h3>Langkah 3: Hitung C(n,k) - Kombinasi</h3>
-            <p>C(${n},${k}) = ${n}! / (${k}! × (${n}-${k})!)</p>
-            <p>C(${n},${k}) = ${C}</p>
-        </div>
-
-        <div class="step">
-            <h3>Langkah 4: Hitung p^k</h3>
-            <p>(${p})^${k} = ${P_k.toFixed(6)}</p>
-        </div>
-
-        <div class="step">
-            <h3>Langkah 5: Hitung (1-p)^(n-k)</h3>
-            <p>(1-${p})^(${n}-${k}) = ${P_nk.toFixed(6)}</p>
-        </div>
-
-        <div class="step">
-            <h3>Langkah 6: Kalikan Semua Komponen</h3>
-            <p>${C} × ${P_k.toFixed(6)} × ${P_nk.toFixed(6)} = ${(result * 100).toFixed(4)}%</p>
-        </div>
-
-        <div class="step">
-            <h3>Interpretasi:</h3>
-            <p>Probabilitas mendapatkan tepat ${k} pengiriman sukses dari ${n} total pengiriman adalah ${(result * 100).toFixed(2)}%</p>
-        </div>
-    `;
-
-    solutionDiv.innerHTML = solution;
-}
-
-function updateChart(data, k) {
-    const ctx = document.getElementById('probabilityChart').getContext('2d');
+document.addEventListener('DOMContentLoaded', function() {
+    const calculateBtn = document.getElementById('calculateBtn');
+    const homeInput = document.getElementById('homeGoals');
+    const awayInput = document.getElementById('awayGoals');
     
-    if (probabilityChart) {
-        probabilityChart.destroy();
-    }
+    // Set default values
+    homeInput.value = "1.655";
+    awayInput.value = "2.123";
     
-    const backgroundColor = data.map((point, index) => 
-        index === parseInt(k) ? 'rgba(26, 115, 232, 0.8)' : 'rgba(26, 115, 232, 0.2)'
-    );
+    calculateBtn.addEventListener('click', calculateProbabilities);
+    // Initial calculation on page load
+    calculateProbabilities();
+});
 
-    probabilityChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: data.map(point => point.x),
-            datasets: [{
-                label: 'Probabilitas',
-                data: data.map(point => (point.y * 100).toFixed(2)),
-                backgroundColor: backgroundColor,
-                borderColor: 'rgba(26, 115, 232, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Probabilitas (%)'
-                    }
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Jumlah Sukses'
-                    }
-                }
+async function calculateProbabilities() {
+    const homeGoals = document.getElementById('homeGoals').value;
+    const awayGoals = document.getElementById('awayGoals').value;
+    const showPercent = document.getElementById('showPercent').checked;
+
+    try {
+        const response = await fetch('/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Distribusi Probabilitas Binomial'
-                }
+            body: JSON.stringify({
+                home: homeGoals,
+                away: awayGoals
+            })
+        });
+
+        const data = await response.json();
+        updateAllTables(data, showPercent);
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+function updateAllTables(data, showPercent) {
+    // Update Peluang Hasil Akhir table
+    updateFinalResults(data.hasil);
+    
+    // Update Gol Atas/Bawah table
+    updateOverUnderTable(data.matrix);
+    
+    // Update Peluang untuk Menang Bersih table
+    updateCleanWinTable(data.hasil);
+    
+    // Update BTTS table
+    updateBTTSTable(data.btts);
+    
+    // Update Correct Score table
+    updateCorrectScoreTable(data.matrix);
+}
+
+function updateFinalResults(hasil) {
+    const table = document.getElementById('finalResults').getElementsByTagName('tbody')[0];
+    const rows = table.getElementsByTagName('tr');
+    
+    // Menang di kandang sendiri
+    updateTableRow(rows[0], hasil.home_win);
+    
+    // Kemenangan tandang
+    updateTableRow(rows[1], hasil.draw);
+    
+    // Menggambar
+    updateTableRow(rows[2], hasil.away_win);
+}
+
+function updateTableRow(row, probability) {
+    const cells = row.getElementsByTagName('td');
+    const odds = probability > 0 ? (1 / (probability / 100)).toFixed(2) : "0.00";
+    cells[1].textContent = odds;
+    cells[2].textContent = probability.toFixed(2) + "%";
+}
+
+function updateOverUnderTable(matrix) {
+    const table = document.getElementById('overUnderTable');
+    table.innerHTML = '';
+    
+    // Create header
+    const headerRow = document.createElement('tr');
+    const goals = [0.5, 1.5, 2.5, 3.5, 4.5];
+    headerRow.innerHTML = '<th></th>';
+    goals.forEach(goal => {
+        headerRow.innerHTML += `<th>${goal}</th>`;
+    });
+    table.appendChild(headerRow);
+    
+    // Create "Lebih" row
+    const overRow = document.createElement('tr');
+    overRow.innerHTML = '<td>Lebih</td>';
+    goals.forEach(goal => {
+        const prob = calculateOverProbability(matrix, goal);
+        overRow.innerHTML += `<td>${prob.toFixed(2)}</td>`;
+    });
+    table.appendChild(overRow);
+    
+    // Create "Di bawah" row
+    const underRow = document.createElement('tr');
+    underRow.innerHTML = '<td>Di bawah</td>';
+    goals.forEach(goal => {
+        const prob = calculateUnderProbability(matrix, goal);
+        underRow.innerHTML += `<td>${prob.toFixed(2)}</td>`;
+    });
+    table.appendChild(underRow);
+}
+
+function calculateOverProbability(matrix, goal) {
+    let prob = 0;
+    const maxGoals = matrix.length;
+    for (let i = 0; i < maxGoals; i++) {
+        for (let j = 0; j < maxGoals; j++) {
+            if (i + j > goal) {
+                prob += matrix[i][j];
             }
         }
-    });
+    }
+    return prob;
 }
 
-// Validasi input saat nilai berubah
-document.getElementById('p').addEventListener('change', validateInputs);
+function calculateUnderProbability(matrix, goal) {
+    let prob = 0;
+    const maxGoals = matrix.length;
+    for (let i = 0; i < maxGoals; i++) {
+        for (let j = 0; j < maxGoals; j++) {
+            if (i + j < goal) {
+                prob += matrix[i][j];
+            }
+        }
+    }
+    return prob;
+}
 
-function validateInputs() {
-    const p = parseFloat(document.getElementById('p').value);
+function updateCleanWinTable(hasil) {
+    const table = document.getElementById('cleanWinTable').getElementsByTagName('tbody')[0];
+    const rows = table.getElementsByTagName('tr');
     
-    if (p < 0) {
-        document.getElementById('p').value = 0;
-    } else if (p > 1) {
-        document.getElementById('p').value = 1;
+    // Home clean win
+    rows[0].getElementsByTagName('td')[1].textContent = (hasil.home_win / 2).toFixed(2);
+    rows[0].getElementsByTagName('td')[2].textContent = (100 - hasil.home_win / 2).toFixed(2);
+    
+    // Away clean win
+    rows[1].getElementsByTagName('td')[1].textContent = (hasil.away_win / 2).toFixed(2);
+    rows[1].getElementsByTagName('td')[2].textContent = (100 - hasil.away_win / 2).toFixed(2);
+}
+
+function updateBTTSTable(btts) {
+    const table = document.getElementById('bttsTable').getElementsByTagName('tbody')[0];
+    const row = table.getElementsByTagName('tr')[0];
+    
+    row.getElementsByTagName('td')[0].textContent = btts.yes.toFixed(2);
+    row.getElementsByTagName('td')[1].textContent = btts.no.toFixed(2);
+}
+
+function updateCorrectScoreTable(matrix) {
+    const table = document.getElementById('correctScoreTable');
+    table.innerHTML = '';
+    
+    // Create header row
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = '<th>angka 0</th>';
+    for (let i = 0; i < matrix[0].length; i++) {
+        headerRow.innerHTML += `<th>${i}</th>`;
+    }
+    table.appendChild(headerRow);
+    
+    // Create data rows
+    for (let i = 0; i < matrix.length; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${i}</td>`;
+        for (let j = 0; j < matrix[i].length; j++) {
+            row.innerHTML += `<td>${matrix[i][j].toFixed(2)}</td>`;
+        }
+        table.appendChild(row);
     }
 }
